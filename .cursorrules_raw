@@ -1,0 +1,726 @@
+You are an expert web developer. You specialize in Convex, React, Vite, Shadcn, and Tailwind. 
+
+You double-check your code before suggesting them, ensuring the code will work on the first try. To do this, you will 
+need to review the entire codebase before making suggestions. In addition, you need to review the cascading effects of changes 
+you suggest, and make those changes across the codebase as necessary.
+
+You triple-check your work to make sure nothing is overlooked and the code is clear and correct. 
+
+The code must run as expected on the first try.
+
+Code Style and Structure:
+- Write concise, technical TypeScript code with accurate examples
+- Use functional and declarative programming patterns; avoid classes
+- Prefer iteration and modularization over code duplication
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError)
+- Structure files: exported component, subcomponents, helpers, static content, types
+
+Naming Conventions:
+- Use lowercase with dashes for directories (e.g., components/auth-wizard)
+- Favor named exports for components
+
+TypeScript Usage:
+- Use TypeScript for all code; prefer interfaces over types
+- Avoid enums; use maps instead
+- Use functional components with TypeScript interfaces
+
+Syntax and Formatting:
+- Use the "function" keyword for pure functions
+- Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements
+- Use declarative JSX
+
+Error Handling and Validation:
+- Prioritize error handling: handle errors and edge cases early
+- Use early returns and guard clauses
+- Implement proper error logging and user-friendly messages
+- Use Zod for form validation
+- Model expected errors as return values in Server Actions
+- Use error boundaries for unexpected errors
+
+UI and Styling:
+- Use Shadcn UI, Radix, and Tailwind Aria for components and styling
+- Implement responsive design with Tailwind CSS; use a mobile-first approach
+- Use Shadcn if available
+
+Performance Optimization:
+- Minimize 'use client', 'useEffect', and 'setState'; favor React Server Components (RSC)
+- Wrap client components in Suspense with fallback
+- Use dynamic loading for non-critical components
+- Optimize images: use WebP format, include size data, implement lazy loading
+
+Key Conventions:
+- Use 'nuqs' for URL search parameter state management
+- Optimize Web Vitals (LCP, CLS, FID)
+- Limit 'use client':
+  - Favor server components and Next.js SSR
+  - Use only for Web API access in small components
+  - Avoid for data fetching or state management
+
+Follow the Convex docs for data fetching, file storage, and creating endpoints via Http Actions.
+
+Use react-router-dom for routing.
+
+Use Tailwind for styling, and Shadcn if available.
+
+
+What follows are some up-to-date examples of how to use Convex. This for extra reference, use it to augment your suggestions:
+
+> CONVEX QUERIES
+>> example query
+
+```
+import { query } from "./_generated/server";
+import { v } from "convex/values";
+
+// Return the last 100 tasks in a given task list.
+export const getTaskList = query({
+  args: { taskListId: v.id("taskLists") },
+  handler: async (ctx, args) => {
+    const tasks = await ctx.db
+      .query("tasks")
+      .filter((q) => q.eq(q.field("taskListId"), args.taskListId))
+      .order("desc")
+      .take(100);
+    return tasks;
+  },
+});
+```
+
+>> Query names
+Queries are defined in TypeScript files inside your convex/ directory.
+
+The path and name of the file, as well as the way the function is exported from the file, determine the name the client will use to call it:
+
+```
+convex/myFunctions.ts
+// This function will be referred to as `api.myFunctions.myQuery`.
+export const myQuery = …;
+
+// This function will be referred to as `api.myFunctions.sum`.
+export const sum = …;
+```
+
+To structure your API you can nest directories inside the convex/ directory:
+
+```
+convex/foo/myQueries.ts
+// This function will be referred to as `api.foo.myQueries.listMessages`.
+export const listMessages = …;
+```
+
+Default exports receive the name default.
+
+```
+convex/myFunctions.ts
+// This function will be referred to as `api.myFunctions.default`.
+export default …;
+```
+
+The same rules apply to mutations and actions, while HTTP actions use a different routing approach.
+
+Client libraries in languages other than JavaScript and TypeScript use strings instead of API objects:
+
+api.myFunctions.myQuery is "myFunctions:myQuery"
+api.foo.myQueries.myQuery is "foo/myQueries:myQuery".
+api.myFunction.default is "myFunction:default" or "myFunction".
+
+>> The query constructor
+To actually declare a query in Convex you use the query constructor function. Pass it an object with a handler function, which returns the query result:
+
+```
+// convex/myFunctions.ts
+import { query } from "./_generated/server";
+
+export const myConstantString = query({
+  handler: () => {
+    return "My never changing string";
+  },
+});
+```
+
+>> Query arguments
+Queries accept named arguments. The argument values are accessible as fields of the second parameter of the handler function:
+
+```
+// convex/myFunctions.ts
+import { query } from "./_generated/server";
+
+export const sum = query({
+  handler: (_, args: { a: number; b: number }) => {
+    return args.a + args.b;
+  },
+});
+```
+
+Arguments and responses are automatically serialized and deserialized, and you can pass and return most value-like JavaScript data to and from your query.
+
+To both declare the types of arguments and to validate them, add an args object using v validators:
+
+```
+//convex/myFunctions.ts
+
+import { query } from "./_generated/server";
+import { v } from "convex/values";
+
+export const sum = query({
+  args: { a: v.number(), b: v.number() },
+  handler: (_, args) => {
+    return args.a + args.b;
+  },
+});
+```
+
+The first parameter of the handler function contains the query context.
+
+>> Query responses
+Queries can return values of any supported Convex type which will be automatically serialized and deserialized.
+
+Queries can also return undefined, which is not a valid Convex value. When a query returns undefined it is translated to null on the client.
+
+>> Query context
+The query constructor enables fetching data, and other Convex features by passing a QueryCtx object to the handler function as the first parameter:
+
+// convex/myFunctions.ts
+import { query } from "./_generated/server";
+import { v } from "convex/values";
+
+export const myQuery = query({
+  args: { a: v.number(), b: v.number() },
+  handler: (ctx, args) => {
+    // Do something with `ctx`
+  },
+});
+
+Which part of the query context is used depends on what your query needs to do:
+
+To fetch from the database use the db field. Note that we make the handler function an async function so we can await the promise returned by db.get():
+
+// convex/myFunctions.ts
+import { query } from "./_generated/server";
+import { v } from "convex/values";
+
+export const getTask = query({
+  args: { id: v.id("tasks") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+To return URLs to stored files use the storage field. To check user authentication use the auth field.
+
+>> Splitting up query code via helpers
+When you want to split up the code in your query or reuse logic across multiple Convex functions you can define and call helper 
+functions.
+
+```
+//convex/myFunctions.ts
+import { Id } from "./_generated/dataModel";
+import { query, QueryCtx } from "./_generated/server";
+import { v } from "convex/values";
+
+export const getTaskAndAuthor = query({
+  args: { id: v.id("tasks") },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.id);
+    if (task === null) {
+      return null;
+    }
+    return { task, author: await getUserName(ctx, task.authorId ?? null) };
+  },
+});
+
+async function getUserName(ctx: QueryCtx, userId: Id<"users"> | null) {
+  if (userId === null) {
+    return null;
+  }
+  return (await ctx.db.get(userId))?.name;
+}
+```
+
+You can export helpers to use them across multiple files. They will not be callable from outside of your Convex functions.
+
+>> Using NPM packages
+Queries can import NPM packages installed in node_modules. Not all NPM packages are supported.
+
+```
+npm install @faker-js/faker
+```
+
+//convex/myFunctions.ts
+import { query } from "./_generated/server";
+import { faker } from "@faker-js/faker";
+
+export const randomName = query({
+  args: {},
+  handler: () => {
+    faker.seed();
+    return faker.person.fullName();
+  },
+});
+
+>> Calling queries from clients
+To call a query from React use the useQuery hook along with the generated api object.
+
+// src/MyApp.tsx
+import { useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
+
+export function MyApp() {
+  const data = useQuery(api.myFunctions.sum, { a: 1, b: 2 });
+  // do something with `data`
+}
+
+> CONVEX MUTATIONS
+>> Examples
+What follows are examples of Convex mutations. Mutations insert, update and remove data from the database, check authentication or perform other business logic, and optionally return a response to the client application.
+
+```
+import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+
+// Create a new task with the given text
+export const createTask = mutation({
+  args: { text: v.string() },
+  handler: async (ctx, args) => {
+    const newTaskId = await ctx.db.insert("tasks", { text: args.text });
+    return newTaskId;
+  },
+});
+```
+
+>> Mutation responses
+Queries can return values of any supported Convex type which will be automatically serialized and deserialized.
+
+Mutations can also return undefined, which is not a valid Convex value. Mutations can also return undefined, which is not a valid Convex value. When a mutation returns undefined it is translated to null on the client.
+
+```
+import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+
+export const mutateSomething = mutation({
+  args: { a: v.number(), b: v.number() },
+  handler: (ctx, args) => {
+    // Do something with `ctx`
+  },
+});
+```
+
+```
+import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+
+export const addItem = mutation({
+  args: { text: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("tasks", { text: args.text });
+  },
+});
+```
+
+> CONVEX ACTIONS
+>> Actions can call third party services to do things such as processing a payment with Stripe. They can be run in Convex's JavaScript environment or in Node.js. They can interact with the database indirectly by calling queries and mutations.
+
+```
+import { query, mutation, action, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { v } from "convex/values";
+
+export const list = query(async (ctx) => {
+  return await ctx.db.query("messages").collect();
+});
+
+export const send = mutation(async (ctx, { body, author }) => {
+  const message = { body, author, format: "text" };
+  await ctx.db.insert("messages", message);
+});
+
+function giphyUrl(queryString: string) {
+  return (
+    "https://api.giphy.com/v1/gifs/translate?api_key=" +
+    process.env.GIPHY_KEY +
+    "&s=" +
+    encodeURIComponent(queryString)
+  );
+}
+
+// Post a GIF chat message corresponding to the query string.
+export const sendGif = action({
+  args: { queryString: v.string(), author: v.string() },
+  handler: async (ctx, { queryString, author }) => {
+    // Fetch GIF url from GIPHY.
+    const data = await fetch(giphyUrl(queryString));
+    const json = await data.json();
+    if (!data.ok) {
+      throw new Error(`Giphy errored: ${JSON.stringify(json)}`);
+    }
+    const gifEmbedUrl = json.data.embed_url;
+
+    // Write GIF url to Convex.
+    await ctx.runMutation(internal.messages.sendGifMessage, {
+      body: gifEmbedUrl,
+      author,
+    });
+  },
+});
+
+export const sendGifMessage = internalMutation(
+  async (ctx, { body, author }) => {
+    const message = { body, author, format: "giphy" };
+    await ctx.db.insert("messages", message);
+  },
+);
+```
+
+> CONVEX HTTP ACTIONS
+HTTP actions allow you to build an HTTP API right in Convex! HTTP actions are exposed at https://<your deployment name>.convex.site (e.g. https://happy-animal-123.convex.site).
+
+The first argument to the handler is an ActionCtx object, which provides auth, storage, and scheduler, as well as runQuery, runMutation, runAction.
+
+The second argument contains the Request data. HTTP actions do not support argument validation, as the parsing of arguments from the incoming Request is left entirely to you.
+
+```
+// convex/http.ts
+import { httpRouter } from "convex/server";
+import { postMessage, getByAuthor, getByAuthorPathSuffix } from "./messages";
+
+const http = httpRouter();
+
+http.route({
+  path: "/postMessage",
+  method: "POST",
+  handler: postMessage,
+});
+
+// Define additional routes
+http.route({
+  path: "/getMessagesByAuthor",
+  method: "GET",
+  handler: getByAuthor,
+});
+
+// Define a route using a path prefix
+http.route({
+  // Will match /getAuthorMessages/User+123 and /getAuthorMessages/User+234 etc.
+  pathPrefix: "/getAuthorMessages/",
+  method: "GET",
+  handler: getByAuthorPathSuffix,
+});
+
+// Convex expects the router to be the default export of `convex/http.js`.
+export default http;
+```
+
+```
+// convex/messages.ts
+import { ActionCtx, httpAction, mutation, query } from "./_generated/server";
+import { api } from "./_generated/api";
+
+export const postMessage = httpAction(async (ctx, request) => {
+  const { author, body } = await request.json();
+
+  await ctx.runMutation(api.messages.send, {
+    body: `Sent via HTTP action: ${body}`,
+    author,
+  });
+
+  return new Response(null, {
+    status: 200,
+  });
+});
+
+export const list = query(async (ctx) => {
+  return await ctx.db.query("messages").collect();
+});
+
+export const send = mutation(async (ctx, { body, author }) => {
+  const message = { body, author };
+  await ctx.db.insert("messages", message);
+});
+
+const queryByAuthor = async (ctx: ActionCtx, authorNumber: string) => {
+  const messages = await ctx.runQuery(api.messages.list);
+  const filteredMessages = messages
+    .filter((message) => {
+      return message.author === `User ${authorNumber}`;
+    })
+    .map((message) => {
+      return {
+        body: message.body,
+        author: message.author,
+      };
+    });
+  return new Response(JSON.stringify(filteredMessages), {
+    headers: {
+      "content-type": "application/json",
+    },
+    status: 200,
+  });
+};
+
+export const getByAuthor = httpAction(async (ctx, request) => {
+  const url = new URL(request.url);
+  const authorNumber =
+    url.searchParams.get("authorNumber") ??
+    request.headers.get("authorNumber") ??
+    null;
+  if (authorNumber === null) {
+    return new Response(
+      "Did not specify authorNumber as query param or header",
+      {
+        status: 400,
+      },
+    );
+  }
+  return await queryByAuthor(ctx, authorNumber);
+});
+
+export const getByAuthorPathSuffix = httpAction(async (ctx, request) => {
+  const url = new URL(request.url);
+  const pathParts = url.pathname.split("/");
+  if (pathParts.length < 3) {
+    return new Response(
+      "Missing authorNumber path suffix, URL path should be in the form /getAuthorMessages/[author]",
+    );
+  }
+  const authorNumber = pathParts[pathParts.length - 1];
+  return await queryByAuthor(ctx, authorNumber);
+});
+```
+
+> CONVEX SCHEDULING
+Convex allows you to schedule functions to run in the future. This allows you to build powerful durable workflows without the need to set up and maintain queues or other infrastructure.
+
+Scheduled functions are stored in the database. This means you can schedule functions minutes, days, and even months in the future. Scheduling is resilient against unexpected downtime or system restarts.
+
+You can schedule public functions and internal functions from mutations and actions via the scheduler provided in the respective function context
+
+runAfter schedules a function to run after a delay (measured in milliseconds).
+runAt schedules a function run at a date or timestamp (measured in milliseconds elapsed since the epoch).
+The rest of the arguments are the path to the function and its arguments, similar to invoking a function from the client. For example, here is how to send a message that self-destructs in five seconds.
+
+```
+import { mutation, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { v } from "convex/values";
+
+export const sendExpiringMessage = mutation({
+  args: { body: v.string(), author: v.string() },
+  handler: async (ctx, args) => {
+    const { body, author } = args;
+    const id = await ctx.db.insert("messages", { body, author });
+    await ctx.scheduler.runAfter(5000, internal.messages.destruct, {
+      messageId: id,
+    });
+  },
+});
+
+export const destruct = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.messageId);
+  },
+});
+```
+
+Every scheduled function is reflected as a document in the "_scheduled_functions" system table. runAfter() and runAt() return the id of scheduled function. You can read data from system tables using the db.system.get and db.system.query methods, which work the same as the standard db.get and db.query methods.
+
+```
+export const listScheduledMessages = query({
+  args: {},
+  handler: async (ctx, args) => {
+    return await ctx.db.system.query("_scheduled_functions").collect();
+  },
+});
+
+export const getScheduledMessage = query({
+  args: {
+    id: v.id("_scheduled_functions"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.system.get(args.id);
+  },
+});
+```
+
+Response:
+```json
+{
+  "_creationTime": 1699931054642.111,
+  "_id": "3ep33196167235462543626ss0scq09aj4gqn9kdxrdr",
+  "args": [{}],
+  "completedTime": 1699931054690.366,
+  "name": "messages.js:destruct",
+  "scheduledTime": 1699931054657,
+  "state": { "kind": "success" }
+}
+```
+
+Cancelling schedule functions:
+```
+export const cancelMessage = mutation({
+  args: {
+    id: v.id("_scheduled_functions"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.scheduler.cancel(args.id);
+  },
+});
+```
+
+Cron Jobs
+Convex allows you to schedule functions to run on a recurring basis. For example, cron jobs can be used to clean up data at a regular interval, send a reminder email at the same time every month, or schedule a backup every Saturday.
+
+Defining your cron jobs
+Cron jobs are defined in a crons.ts file in your convex/ directory and look like:
+
+```
+//convex/crons.ts
+import { cronJobs } from "convex/server";
+import { internal } from "./_generated/api";
+
+const crons = cronJobs();
+
+crons.interval(
+  "clear messages table",
+  { minutes: 1 }, // every minute
+  internal.messages.clearAll,
+);
+
+crons.monthly(
+  "payment reminder",
+  { day: 1, hourUTC: 16, minuteUTC: 0 }, // Every month on the first day at 8:00am PST
+  internal.payments.sendPaymentEmail,
+  { email: "my_email@gmail.com" }, // argument to sendPaymentEmail
+);
+
+// An alternative way to create the same schedule as above with cron syntax
+crons.cron(
+  "payment reminder duplicate",
+  "0 16 1 * *",
+  internal.payments.sendPaymentEmail,
+  { email: "my_email@gmail.com" }, // argument to sendPaymentEmail
+);
+
+export default crons;
+```
+
+Supported schedules:
+crons.interval() runs a function every specified number of seconds, minutes, or hours. The first run occurs when the cron job is first deployed to Convex. Unlike traditional crons, this option allows you to have seconds-level granularity.
+crons.cron() the traditional way of specifying cron jobs by a string with five fields separated by spaces (e.g. "* * * * *"). Times in cron syntax are in the UTC timezone. Crontab Guru is a helpful resource for understanding and creating schedules in this format.
+crons.hourly(), crons.daily(), crons.weekly(), crons.monthly() provide an alternative syntax for common cron schedules with explicitly named arguments.
+
+> CONVEX File Storage
+File Storage makes it easy to implement file upload in your app, store files from and send files to third-party APIs, and to serve dynamic files to your users. All file types are supported.
+
+Uploading files via upload URLs
+Arbitrarily large files can be uploaded directly to your backend using a generated upload URL. This requires the client to make 3 requests:
+
+Generate an upload URL using a mutation that calls storage.generateUploadUrl().
+Send a POST request with the file contents to the upload URL and receive a storage ID.
+Save the storage ID into your data model via another mutation.
+In the first mutation that generates the upload URL you can control who can upload files to your Convex storage.
+
+Example: File Storage with Queries and Mutations
+
+>> Calling the upload APIs from a web page
+Here's an example of uploading an image via a form submission handler to an upload URL generated by a mutation:
+
+```
+//src/App.tsx
+import { FormEvent, useRef, useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
+
+export default function App() {
+  const generateUploadUrl = useMutation(api.messages.generateUploadUrl);
+  const sendImage = useMutation(api.messages.sendImage);
+
+  const imageInput = useRef<HTMLInputElement>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+
+  const [name] = useState(() => "User " + Math.floor(Math.random() * 10000));
+  async function handleSendImage(event: FormEvent) {
+    event.preventDefault();
+
+    // Step 1: Get a short-lived upload URL
+    const postUrl = await generateUploadUrl();
+    // Step 2: POST the file to the URL
+    const result = await fetch(postUrl, {
+      method: "POST",
+      headers: { "Content-Type": selectedImage!.type },
+      body: selectedImage,
+    });
+    const { storageId } = await result.json();
+    // Step 3: Save the newly allocated storage id to the database
+    await sendImage({ storageId, author: name });
+
+    setSelectedImage(null);
+    imageInput.current!.value = "";
+  }
+  return (
+    <form onSubmit={handleSendImage}>
+      <input
+        type="file"
+        accept="image/*"
+        ref={imageInput}
+        onChange={(event) => setSelectedImage(event.target.files![0])}
+        disabled={selectedImage !== null}
+      />
+      <input
+        type="submit"
+        value="Send Image"
+        disabled={selectedImage === null}
+      />
+    </form>
+  );
+}
+```
+
+>> Generating the upload URL
+An upload URL can be generated by the storage.generateUploadUrl function of the MutationCtx object:
+
+```
+//convex/messages.ts
+import { mutation } from "./_generated/server";
+
+export const generateUploadUrl = mutation(async (ctx) => {
+  return await ctx.storage.generateUploadUrl();
+});
+```
+
+This mutation can control who is allowed to upload files.
+
+The upload URL expires in 1 hour and so should be fetched shortly before the upload is made.
+
+>> Writing the new storage ID to the database
+Since the storage ID is returned to the client it is likely you will want to persist it in the database via another mutation:
+
+```
+//convex/messages.ts
+import { mutation } from "./_generated/server";
+
+export const sendImage = mutation({
+  args: { storageId: v.id("_storage"), author: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("messages", {
+      body: args.storageId,
+      author: args.author,
+      format: "image",
+    });
+  },
+});
+```
+
+Calling the upload HTTP action from a web page
+Here's an example of uploading an image via a form submission handler to the sendImage HTTP action defined next.
+
+These lines make the actual request to the HTTP action:
+```
+await fetch(sendImageUrl, {
+  method: "POST",
+  headers: { "Content-Type": selectedImage!.type },
+  body: selectedImage,
+});
+```
