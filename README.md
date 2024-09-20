@@ -42,12 +42,6 @@ Create a `.env.local` file in the root directory with:
 
 ## Running the Project
 
-0. Install the dependencies
-
-   ```
-   npm i
-   ```
-
 1. Start the Vite development server:
 
    ```
