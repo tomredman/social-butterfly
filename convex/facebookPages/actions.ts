@@ -4,7 +4,7 @@ import axios from "axios";
 import { v } from "convex/values";
 import jwt from "jsonwebtoken";
 
-import { internal } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
 import { internalAction } from "../_generated/server";
 import { igProfileFields } from "../instagramPosts/actions";
@@ -97,7 +97,7 @@ export const fetchFacebookPagesForSocialAccount = internalAction({
     }
 
     await ctx.runQuery(
-      internal.facebookPages.queries.getFacebookPagesBySocialAccountId,
+      api.facebookPages.queries.getFacebookPagesBySocialAccountId,
       { socialAccountId: args.socialAccountId }
     );
 

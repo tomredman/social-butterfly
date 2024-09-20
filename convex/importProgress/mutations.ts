@@ -5,7 +5,15 @@ import { internalMutation } from "../_generated/server";
 export const completeProgress = internalMutation({
   args: { socialAccountId: v.id("socialAccounts") },
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.socialAccountId);
+    const progress = await ctx.db
+      .query("importProgress")
+      .withIndex("by_socialAccountId", (q) =>
+        q.eq("socialAccountId", args.socialAccountId)
+      )
+      .first();
+    if (progress) {
+      await ctx.db.delete(progress._id);
+    }
   },
 });
 

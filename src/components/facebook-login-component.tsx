@@ -9,7 +9,7 @@ import {
 import { Id } from "convex/_generated/dataModel";
 import { useAction } from "convex/react";
 import { useQuery } from "convex/react";
-import { CheckCircle, Instagram } from "lucide-react";
+import { Instagram } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -41,7 +41,6 @@ export const FacebookLoginComponent = () => {
   );
 
   useEffect(() => {
-    console.log("jobStatus", jobStatus);
     if (jobStatus && jobStatus.status === "completed") {
       setIsConnected(true);
       setIsConnecting(false);
@@ -50,7 +49,6 @@ export const FacebookLoginComponent = () => {
   }, [jobStatus, setIsConnected]);
 
   useEffect(() => {
-    console.log("progress", progress);
     setSanitizedProgressCount(progress?.processedPosts || 0);
   }, [progress, sanitizedProgressCount]);
 
@@ -127,8 +125,6 @@ export const FacebookLoginComponent = () => {
   const disconnectAccount = () => {
     removeSocialAccountId();
   };
-
-  console.log("progress", progress);
 
   return (
     <>

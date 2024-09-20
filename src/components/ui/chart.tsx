@@ -1,11 +1,6 @@
 import { cn } from "@/lib/utils";
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
-import {
-  NameType,
-  Payload,
-  ValueType,
-} from "recharts/types/component/DefaultTooltipContent";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { dark: ".dark", light: "" } as const;
@@ -71,7 +66,7 @@ ChartContainer.displayName = "Chart";
 
 const ChartStyle = ({ config, id }: { config: ChartConfig; id: string }) => {
   const colorConfig = Object.entries(config).filter(
-    ([_, config]) => config.theme || config.color
+    ([, config]) => config.theme || config.color
   );
 
   if (!colorConfig.length) {

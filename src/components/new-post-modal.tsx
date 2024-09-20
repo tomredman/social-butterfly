@@ -1,9 +1,3 @@
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -28,59 +22,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useConvexFileUploader } from "@/hooks/use-convex-file-uploader";
+import { Id } from "convex/_generated/dataModel";
+import { useMutation, useQuery } from "convex/react";
 import { addDays, addHours, addMinutes, format, nextSaturday } from "date-fns";
-import {
-  Clock,
-  Facebook,
-  Instagram,
-  Linkedin,
-  PlusCircle,
-  Twitter,
-  X,
-  Youtube,
-} from "lucide-react";
+import { Clock, Instagram, PlusCircle, X } from "lucide-react";
 import React from "react";
+import { useLocalStorage } from "usehooks-ts";
 
-import FacebookLoginComponent from "./FacebookLoginComponent";
-
-const socialAccounts = [
-  {
-    icon: Instagram,
-    label: "@travel_enthusiast",
-    network: "instagram",
-    value: "instagram_travel",
-  },
-  {
-    icon: Instagram,
-    label: "@foodie_adventures",
-    network: "instagram",
-    value: "instagram_food",
-  },
-  {
-    icon: Facebook,
-    label: "Main Facebook Page",
-    network: "facebook",
-    value: "facebook_main",
-  },
-  {
-    icon: Twitter,
-    label: "@personal_twitter",
-    network: "twitter",
-    value: "twitter_personal",
-  },
-  {
-    icon: Linkedin,
-    label: "Business LinkedIn",
-    network: "linkedin",
-    value: "linkedin_business",
-  },
-  {
-    icon: Youtube,
-    label: "My YouTube Channel",
-    network: "youtube",
-    value: "youtube_channel",
-  },
-];
+import { api } from "../../convex/_generated/api";
+import FacebookLoginComponent from "./facebook-login-component";
 
 export function NewPostModal() {
   const [selectedDate, setSelectedDate] = React.useState<Date>(() => {
@@ -90,20 +41,126 @@ export function NewPostModal() {
     return addMinutes(addDays(now, randomDays), randomMinutes);
   });
   const [selectedFiles, setSelectedFiles] = React.useState<File[]>([]);
+  const [selectedPage, setSelectedPage] = React.useState<string | undefined>();
+  const [content, setContent] = React.useState("");
+  const [uploadProgress, setUploadProgress] = React.useState<
+    Record<string, number>
+  >({});
+  const [uploadedFileIds, setUploadedFileIds] = React.useState<
+    Id<"_storage">[]
+  >([]);
+  const { generateUploadUrl, uploadFile } = useConvexFileUploader();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const saveScheduledPost = useMutation(
+    api.scheduledPosts.mutations.saveScheduledPost
+  );
+  const triggerPublishNow = useMutation(
+    api.scheduledPosts.mutations.triggerPublishNow
+  );
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = event.target.files;
     if (files) {
       const newFiles = Array.from(files).slice(0, 10 - selectedFiles.length);
       setSelectedFiles((prev) => [...prev, ...newFiles]);
+
+      for (const file of newFiles) {
+        const uploadUrl = await generateUploadUrl();
+        if (uploadUrl) {
+          try {
+            const fileId = await uploadFile(file, uploadUrl, (progress) => {
+              setUploadProgress((prev) => ({ ...prev, [file.name]: progress }));
+            });
+            setUploadedFileIds((prev) => [...prev, fileId]);
+          } catch (error) {
+            console.error("File upload failed:", error);
+            // Handle the error (e.g., show a message to the user)
+          }
+        }
+      }
     }
   };
 
   const handleDeleteFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setUploadedFileIds((prev) => prev.filter((_, i) => i !== index));
+    setUploadProgress((prev) => {
+      const newProgress = { ...prev };
+      delete newProgress[selectedFiles[index].name];
+      return newProgress;
+    });
   };
 
   const today = new Date();
+
+  // Retrieve the current socialAccountId from localStorage
+  const [socialAccountId] = useLocalStorage<Id<"socialAccounts"> | null>(
+    "socialAccountId",
+    null
+  );
+
+  // Fetch associated facebookPages using the socialAccountId
+  const facebookPages = useQuery(
+    api.facebookPages.queries.getFacebookPagesBySocialAccountId,
+    socialAccountId ? { socialAccountId } : "skip"
+  );
+
+  // Handle loading state
+  if (facebookPages === undefined) {
+    return <div>Loading accounts...</div>;
+  }
+
+  // Handle case with no pages
+  if (facebookPages.length === 0) {
+    return <div>No connected Facebook Pages found.</div>;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await createPost(false);
+  };
+
+  const handlePublishNow = async () => {
+    await createPost(true);
+  };
+
+  const createPost = async (publishNow: boolean) => {
+    if (!selectedPage) {
+      alert("Please select a social account.");
+      return;
+    }
+
+    // Wait for all files to finish uploading
+    const allFilesUploaded = selectedFiles.every(
+      (file) => uploadProgress[file.name] === 100
+    );
+    if (!allFilesUploaded) {
+      alert("Please wait for all files to finish uploading.");
+      return;
+    }
+
+    const postData = {
+      content,
+      fileIds: uploadedFileIds,
+      pageId: selectedPage,
+      scheduledTime: selectedDate.toISOString(),
+    };
+
+    try {
+      if (publishNow) {
+        await triggerPublishNow(postData);
+      } else {
+        await saveScheduledPost(postData);
+      }
+      // Reset form or provide feedback to the user
+      // ... (implement form reset and user feedback)
+    } catch (error) {
+      console.error("Error creating post:", error);
+      // Handle the error (e.g., show an error message to the user)
+    }
+  };
 
   return (
     <div className="flex flex-row w-full justify-between">
@@ -115,19 +172,19 @@ export function NewPostModal() {
           <DialogHeader>
             <DialogTitle>Create New Post</DialogTitle>
           </DialogHeader>
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="social-account">Social Network Account</Label>
-              <Select>
+              <Select onValueChange={setSelectedPage}>
                 <SelectTrigger id="social-account">
                   <SelectValue placeholder="Select an account" />
                 </SelectTrigger>
                 <SelectContent>
-                  {socialAccounts.map((account) => (
-                    <SelectItem key={account.value} value={account.value}>
-                      <div className="flex items-center">
-                        <account.icon className="mr-2 h-4 w-4" />
-                        {account.label}
+                  {facebookPages.map((page) => (
+                    <SelectItem key={page.fbPageId} value={page.fbPageId}>
+                      <div className="flex flex-row items-center">
+                        <Instagram className="mr-2 h-4 w-4" />
+                        {page.username || page.name}
                       </div>
                     </SelectItem>
                   ))}
@@ -138,8 +195,10 @@ export function NewPostModal() {
               <Label htmlFor="content">Content</Label>
               <Textarea
                 id="content"
+                onChange={(e) => setContent(e.target.value)}
                 placeholder="Write your post content here..."
                 rows={5}
+                value={content}
               />
             </div>
             <div className="space-y-2">
@@ -256,9 +315,18 @@ export function NewPostModal() {
                 </PopoverContent>
               </Popover>
             </div>
-            <Button className="w-full" type="submit">
-              Create Post
-            </Button>
+            <div className="flex justify-between">
+              <Button className="w-1/2 mr-2" type="submit">
+                Schedule Post
+              </Button>
+              <Button
+                className="w-1/2 ml-2"
+                onClick={handlePublishNow}
+                type="button"
+              >
+                Publish Now
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

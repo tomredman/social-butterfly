@@ -48,6 +48,13 @@ export default defineSchema(
       .index("by_socialAccountId", ["socialAccountId"])
       .index("by_pageId", ["pageId"])
       .index("by_fbPageId", ["fbPageId"]),
+    scheduledPosts: defineTable({
+      content: v.string(),
+      fileIds: v.array(v.string()),
+      pageId: v.string(),
+      scheduledTime: v.string(),
+      status: v.string(), // e.g., 'pending', 'posted', 'failed'
+    }),
     socialAccounts: defineTable({
       fbId: v.string(),
       fbName: v.string(),

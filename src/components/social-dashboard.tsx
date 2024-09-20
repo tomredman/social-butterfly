@@ -22,20 +22,13 @@ import {
   Youtube,
 } from "lucide-react";
 import * as React from "react";
-import { useEffect } from "react";
 
-import { socialPosts } from "../data";
 import { Nav } from "./nav";
-import { NewPostModal } from "./NewPostModal";
+import { NewPostModal } from "./new-post-modal";
 import { PostDisplay } from "./post-display";
 import { PostList } from "./post-list";
 
 interface SocialDashboardProps {
-  accounts: {
-    email: string;
-    icon: React.ReactNode;
-    label: string;
-  }[];
   defaultCollapsed?: boolean;
   defaultLayout: number[] | undefined;
   navCollapsedSize: number;
@@ -61,39 +54,10 @@ export function SocialDashboard({
     setSelectedPostId(null);
   };
 
-  const filteredPosts = socialPosts.filter(
-    (post) => post.platform === selectedPlatform
-  );
-
-  const [socialAccountId, setSocialAccountId] = React.useState<null | string>(
-    null
-  );
-
-  useEffect(() => {
-    const storedSocialAccountId = localStorage.getItem("socialAccountId");
-    if (storedSocialAccountId) {
-      setSocialAccountId(storedSocialAccountId);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "socialAccountId") {
-        setSocialAccountId(e.newValue);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
-  }, []);
-
   return (
     <TooltipProvider delayDuration={0}>
       <ResizablePanelGroup
-        className="h-full items-stretch h-[2000px]"
+        className="h-full items-stretch"
         direction="horizontal"
         onLayout={(sizes: number[]) => {
           document.cookie = `react-resizable-panels:layout:social=${JSON.stringify(
@@ -216,7 +180,6 @@ export function SocialDashboard({
               <PostList
                 onSelectPost={handlePostSelect}
                 selectedPostId={selectedPostId}
-                socialAccountId={socialAccountId}
               />
             </TabsContent>
             <TabsContent className="m-0" value="scheduled">

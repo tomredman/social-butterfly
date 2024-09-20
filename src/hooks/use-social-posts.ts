@@ -1,8 +1,8 @@
 import { create } from "zustand";
 
 interface SocialPostsState {
-  selected: string | null;
-  setSocialPosts: (selected: string | null) => void;
+  selected: null | string;
+  setSocialPosts: (selected: null | string) => void;
 }
 
 export const useSocialPosts = create<SocialPostsState>((set) => ({

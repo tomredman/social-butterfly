@@ -1,6 +1,5 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";

@@ -14,7 +14,7 @@ export function PostList({
   selectedPostId,
 }: {
   onSelectPost: (id: string) => void;
-  selectedPostId: string;
+  selectedPostId: null | string;
 }) {
   const [socialAccountId] = useLocalStorage("socialAccountId", null);
 
