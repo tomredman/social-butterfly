@@ -30,6 +30,10 @@ Set these in your Convex deployment:
 - `FB_REDIRECT_URI`
 - `JWT_SECRET`
 
+These can be set in the Convex dashboard here: `https://dashboard.convex.dev/t/<team>/<project>/<deployment-name>/settings/environment-variables`
+
+  <img width="337" alt="redman-2024-09-20-13 45 22" src="https://github.com/user-attachments/assets/c4b356df-1f00-4776-9294-7803bd20eb85">
+
 ### Local Environment Variables
 
 Create a `.env.local` file in the root directory with:
